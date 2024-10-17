@@ -11,10 +11,8 @@
 </ul>
 
 <h2>Usage</h2>
-<pre><code>
-    from addon import CustomMarkdown
-    client.parse_mode = CustomMarkdown()
-</code></pre>
+<pre><code>from addon import CustomMarkdown
+client.parse_mode = CustomMarkdown()</code></pre>
 
 <p>To utilize the features, simply import <code>CustomMarkdown</code> from the <code>addon.py</code> file and set the client's parse mode as shown above.</p>
 
