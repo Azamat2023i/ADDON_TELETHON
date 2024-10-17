@@ -11,17 +11,21 @@
 </ul>
 
 <h2>Usage</h2>
-<pre><code>from addon import CustomMarkdown
-
-client.parse_mode = CustomMarkdown()</code></pre>
+<pre><code>
+    from addon import CustomMarkdown
+    client.parse_mode = CustomMarkdown()
+</code></pre>
 
 <p>To utilize the features, simply import <code>CustomMarkdown</code> from the <code>addon.py</code> file and set the client's parse mode as shown above.</p>
 
 <h2>Installation</h2>
 <p>You can include this addon in your project by cloning the repository or downloading the <code>addon.py</code> file directly.</p>
 
-<h2>Contributing</h2>
-<p>If you would like to contribute to this project, please feel free to submit a pull request or open an issue on GitHub.</p>
+<h2>Example</h2>
+<p>An example of how to use this addon can be found in the <code>test.py</code> file.</p>
 
-<h2>License</h2>
-<p>This project is licensed under the MIT License - see the <a href="LICENSE">LICENSE</a> file for details.</p>
+<h2>Telethon library Version</h2>
+<p>This addon is compatible with Telethon version <strong>1.37.0</strong>.</p>
+
+<h2>Python Version</h2>
+<p>This addon has been developed using Python version <strong>3.9</strong>.</p>
