@@ -122,7 +122,10 @@ class CustomMarkdown:
                     if del_surrogate(m.group(2)).startswith('emoji/'):
                         result.append(types.MessageEntityCustomEmoji(m.start(), len(m.group(1)), int(del_surrogate(m.group(2)).split('/')[1])))
                     elif del_surrogate(m.group(2)).startswith('blockquote/'):
-                        result.append(types.MessageEntityBlockquote(m.start(), len(m.group(1)), bool(del_surrogate(m.group(2)).split('/')[1])))
+                        if str(del_surrogate(m.group(2)).split('/')[1]) == 'True':
+                            result.append(types.MessageEntityBlockquote(m.start(), len(m.group(1)), True))
+                        else:
+                            result.append(types.MessageEntityBlockquote(m.start(), len(m.group(1)), False))
                     else:
                         result.append(MessageEntityTextUrl(
                             offset=m.start(), length=len(m.group(1)),
