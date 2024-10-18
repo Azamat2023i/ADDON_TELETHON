@@ -2,7 +2,7 @@
 
 import re
 from telethon import types
-
+import warnings
 from telethon.helpers import add_surrogate, del_surrogate, within_surrogate, strip_text
 from telethon.tl import TLObject
 from telethon.tl.types import (
