@@ -19,7 +19,7 @@ DEFAULT_DELIMITERS = {
     '~~': MessageEntityStrike,
     '`': MessageEntityCode,
     '```': MessageEntityPre,
-    '_u_': MessageEntityUnderline,
+    '_~_': MessageEntityUnderline,
     '||': MessageEntitySpoiler
 }
 
