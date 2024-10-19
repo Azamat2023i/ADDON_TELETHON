@@ -106,9 +106,6 @@ class CustomMarkdown:
                         result.append(ent(i, end - i - len(delim), ''))  # У сущности 'lang'.
                     else:
                         result.append(ent(i, end - i - len(delim)))  # Нет вложенных сущностей внутри блоков кода.
-
-                    if ent in (MessageEntityCode, MessageEntityPre):
-                        i = end - len(delim)  # Обновляем индекс для продолжения после блока кода.
                     continue
             elif mg:
                 # Заменяем всё совпадение только текстом URL.
