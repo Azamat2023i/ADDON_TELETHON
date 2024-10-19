@@ -64,7 +64,6 @@ class CustomMarkdown:
         while i < len(message):
             m = url_re.match(message, pos=i)  # Проверяем наличие URL в сообщении.
             if m:
-                print(m)
                 # Заменяем всё совпадение только текстом URL.
                 message = ''.join((
                     message[:m.start()],
@@ -116,7 +115,6 @@ class CustomMarkdown:
                     ))
                     i = end + len(delim)
             elif m:
-                print(m)
                 delim = next(filter(None, m.groups()))  # Получаем найденный разделитель.
 
                 # +1 чтобы избежать совпадения сразу после (например, "****").
