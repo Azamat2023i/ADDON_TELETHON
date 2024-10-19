@@ -62,46 +62,9 @@ class CustomMarkdown:
 
         i = 0
         while i < len(message):
-            m = url_re.match(message, pos=i)  # Проверяем наличие URL в сообщении.
-            if m:
-                # Заменяем всё совпадение только текстом URL.
-                message = ''.join((
-                    message[:m.start()],
-                    m.group(1),
-                    message[m.end():]
-                ))
-
-                delim_size = m.end() - m.start() - len(m.group())  # Вычисляем размер удаляемого текста.
-
-                for ent in result:
-                    # Если конец после нашего начала, это затронуто.
-                    if ent.offset + ent.length > m.start():
-                        ent.length -= delim_size  # Уменьшаем длину сущности.
-
-                if del_surrogate(m.group(2)).startswith('emoji/'):
-                    result.append(types.MessageEntityCustomEmoji(m.start(), len(m.group(1)), int(del_surrogate(m.group(2)).split('/')[1])))
-
-                elif del_surrogate(m.group(2)).startswith('blockquote/'):
-                    if str(del_surrogate(m.group(2)).split('/')[1]) == 'True':
-                        result.append(types.MessageEntityBlockquote(m.start(), len(m.group(1)), True))
-                    else:
-                        result.append(types.MessageEntityBlockquote(m.start(), len(m.group(1)), False))
-
-                else:
-                    result.append(MessageEntityTextUrl(
-                        offset=m.start(),
-                        length=len(m.group(1)),
-                        url=del_surrogate(m.group(2))
-                    ))
-
-                i += len(m.group(1))  # Обновляем индекс для продолжения после URL.
-                continue
-            i += 1  # Переходим к следующему символу в сообщении.
-
-        i = 0
-        while i < len(message):
             m = delim_re.match(message, pos=i)  # Проверяем, нашли ли мы разделитель в позиции i.
             ml = delim_backslash_re.match(message, pos=i)  # Проверяем, нашли ли мы разделитель с \ в позиции i.
+            mg = url_re.match(message, pos=i)  # Проверяем наличие URL в сообщении.
             if ml:
                 delim = next(filter(None, ml.groups()))
 
@@ -116,10 +79,8 @@ class CustomMarkdown:
                     i = end + len(delim)
             elif m:
                 delim = next(filter(None, m.groups()))  # Получаем найденный разделитель.
-
                 # +1 чтобы избежать совпадения сразу после (например, "****").
                 end = message.find(delim, i + len(delim) + 1)  # Ищем ближайший закрывающий тег.
-
                 # Если нашли закрывающий тег.
                 if end != -1:
                     # Удаляем разделитель из строки.
@@ -149,6 +110,36 @@ class CustomMarkdown:
                     if ent in (MessageEntityCode, MessageEntityPre):
                         i = end - len(delim)  # Обновляем индекс для продолжения после блока кода.
                     continue
+            elif mg:
+                # Заменяем всё совпадение только текстом URL.
+                message = ''.join((
+                    message[:mg.start()],
+                    mg.group(1),
+                    message[mg.end():]
+                ))
+
+                delim_size = mg.end() - mg.start() - len(mg.group())  # Вычисляем размер удаляемого текста.
+
+                for ent in result:
+                    # Если конец после нашего начала, это затронуто.
+                    if ent.offset + ent.length > mg.start():
+                        ent.length -= delim_size  # Уменьшаем длину сущности.
+
+                if del_surrogate(mg.group(2)).startswith('emoji/'):
+                    result.append(types.MessageEntityCustomEmoji(mg.start(), len(mg.group(1)),
+                                                                 int(del_surrogate(mg.group(2)).split('/')[1])))
+                elif del_surrogate(mg.group(2)).startswith('blockquote/'):
+                    if str(del_surrogate(mg.group(2)).split('/')[1]) == 'True':
+                        result.append(types.MessageEntityBlockquote(mg.start(), len(mg.group(1)), True))
+                    else:
+                        result.append(types.MessageEntityBlockquote(mg.start(), len(mg.group(1)), False))
+                else:
+                    result.append(MessageEntityTextUrl(
+                        offset=mg.start(),
+                        length=len(mg.group(1)),
+                        url=del_surrogate(mg.group(2))
+                    ))
+                continue
             i += 1  # Переходим к следующему символу в сообщении.
 
         message = strip_text(message, result)  # Очищаем текст сообщения от лишнего.
