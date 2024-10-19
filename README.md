@@ -23,3 +23,15 @@ client.parse_mode = CustomMarkdown()</code></pre>
 <h2>Python and Telethon library Version</h2>
 <p>This addon has been developed using Python version <strong>3.9</strong>, haven't tried it with other versions.</p>
 <p>This addon is compatible with Telethon version <strong>1.37.0</strong>, haven't tried it with other versions.</p>
+
+<h2>Update Versions</h2>
+<p>1.0.0:</p>
+<ul>
+    <li>The main functionality</li>
+</ul>
+<p>1.1.0:</p>
+<ul>
+    <li>Added processing of special characters in blocks (link, quote).</li>
+    <li>Added escaping of special characters.</li>
+    <li>Minor bugs have been fixed.</li>
+</ul>
