@@ -32,6 +32,6 @@ client.parse_mode = CustomMarkdown()</code></pre>
 <p>1.1.0:</p>
 <ul>
     <li>Added processing of special characters in blocks (Link, Quote, Copyable text "Mono", Code).</li>
-    <li>Added escaping of special characters.</li>
+    <li>Added escaping of special characters "\".</li>
     <li>Minor bugs have been fixed.</li>
 </ul>
