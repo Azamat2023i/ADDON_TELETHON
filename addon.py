@@ -17,8 +17,8 @@ DEFAULT_DELIMITERS = {
     '**': MessageEntityBold,
     '__': MessageEntityItalic,
     '~~': MessageEntityStrike,
-    '`': MessageEntityCode,
     '```': MessageEntityPre,
+    '`': MessageEntityCode,
     '_~_': MessageEntityUnderline,
     '||': MessageEntitySpoiler
 }
@@ -34,7 +34,7 @@ def overlap(a, b, x, y):
 
 class CustomMarkdown:
     @staticmethod
-    def parse(message, delimiters=None, delimiters_backslash=None, url_re=None):
+    def parse(message, delimiters=None, delimiters_backslash=None, url_re=None, l=0):
         if not message:
             return message, []
 
@@ -143,7 +143,7 @@ class CustomMarkdown:
         return del_surrogate(message), result  # Возвращаем обработанное сообщение и список сущностей.
 
     @staticmethod
-    def unparse(text, entities, delimiters=None, url_fmt=None):
+    def unparse(text, entities, delimiters=None, url_fmt=None, count_replacements=0):
         # Проверяем, есть ли текст и сущности
         if not text or not entities:
             return text  # Если нет текста или сущностей, возвращаем текст как есть
@@ -153,9 +153,6 @@ class CustomMarkdown:
             if delimiters is not None:
                 return text  # Если разделители не заданы, но переданы явно, возвращаем текст
             delimiters = DEFAULT_DELIMITERS  # Устанавливаем разделители по умолчанию
-
-            for delimiter in DEFAULT_DELIMITERS.keys():
-                text = text.replace(delimiter, '\\' + delimiter)
 
         # Предупреждаем, что параметр url_fmt устарел
         if url_fmt is not None:
@@ -173,8 +170,20 @@ class CustomMarkdown:
         insert_at = []  # Список для хранения позиций вставки
 
         for i, entity in enumerate(entities):
-            s = entity.offset  # Начальная позиция сущности
-            e = entity.offset + entity.length  # Конечная позиция сущности
+            s = entity.offset + count_replacements  # Начальная позиция сущности
+            e = entity.offset + entity.length + count_replacements  # Конечная позиция сущности
+
+            text = del_surrogate(text)
+            ll = 0
+            for delimiter in DEFAULT_DELIMITERS.keys():
+                count = text[s:e].count(delimiter)
+                count_replacements += count  # Добавляем к общему счетчику
+                ll += count
+                text_sl = text[s:e].replace(delimiter, '\\' + delimiter)
+                text = text[:s] + text_sl + text[e:]
+            e += ll
+            text = add_surrogate(text)
+
             delimiter = delimiters.get(type(entity), None)  # Получаем разделитель для данной сущности
 
             if delimiter:
@@ -203,5 +212,4 @@ class CustomMarkdown:
                 at += 1  # Если есть суррогаты, сдвигаем позицию
 
             text = text[:at] + what + text[at:]  # Вставляем нужный текст в позицию
-
         return del_surrogate(text)  # Убираем суррогаты из текста и возвращаем результат
