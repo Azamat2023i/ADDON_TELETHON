@@ -9,8 +9,7 @@ from telethon.tl.types import (
     MessageEntityBold, MessageEntityItalic, MessageEntityCode,
     MessageEntityPre, MessageEntityTextUrl, MessageEntityMentionName,
     MessageEntityStrike, MessageEntityCustomEmoji, MessageEntitySpoiler,
-    MessageEntityBlockquote, MessageEntityUnderline, MessageEntityHashtag,
-    MessageEntityPre
+    MessageEntityBlockquote, MessageEntityUnderline
 )
 
 DEFAULT_DELIMITERS = {
@@ -68,15 +67,12 @@ class CustomMarkdown:
             if ml:
                 delim = next(filter(None, ml.groups()))
 
-                end = message.find(delim, i + len(delim) + 1)  # Ищем ближайший закрывающий тег.
+                message = delim[1:].join((
+                    message[:i],
+                    message[i + len(delim):]
+                ))
 
-                if end != -1:
-                    message = delim[1:].join((
-                        message[:i],
-                        message[i + len(delim):end],
-                        message[end + len(delim):]
-                    ))
-                    i = end + len(delim)
+                i += len(delim)
             elif m:
                 delim = next(filter(None, m.groups()))  # Получаем найденный разделитель.
                 # +1 чтобы избежать совпадения сразу после (например, "****").
