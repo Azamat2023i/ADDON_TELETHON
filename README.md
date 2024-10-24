@@ -36,7 +36,7 @@ client.parse_mode = CustomMarkdown()</code></pre>
     <li>Minor bugs have been fixed.</li>
 </ul>
 <br><br>
-<h1>Дополнение для обработки Markdown в Telethon</h1>
+<h1>Дополнение для обработки Markdown в Telethon (Русский)</h1>
 
 <p>Это дополнение улучшает возможности обработки Markdown в библиотеке Telethon.</p>
 
