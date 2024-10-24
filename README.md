@@ -1,4 +1,4 @@
-<h1>Telethon Markdown Processing Addon</h1>
+<h1>Telethon Markdown Processing Addon (English)</h1>
 
 <p>This addon enhances the markdown processing capabilities of the Telethon library.</p>
 
@@ -34,4 +34,42 @@ client.parse_mode = CustomMarkdown()</code></pre>
     <li>Added processing of special characters in blocks (Link, Quote, Copyable text "Mono", Code).</li>
     <li>Added escaping of special characters "\".</li>
     <li>Minor bugs have been fixed.</li>
+</ul>
+<br><br>
+<h1>Дополнение для обработки Markdown в Telethon</h1>
+
+<p>Это дополнение улучшает возможности обработки Markdown в библиотеке Telethon.</p>
+
+<h2>Особенности</h2>
+<ul>
+    <li>Обработка скрытого текста</li>
+    <li>Подчеркивание текста</li>
+    <li>Пользовательские эмодзи</li>
+    <li>Цитаты (как сворачиваемые, так и полные)</li>
+</ul>
+
+<h2>Использование</h2>
+<pre><code>from addon import CustomMarkdown
+client.parse_mode = CustomMarkdown()</code></pre>
+
+<p>Чтобы использовать функции, просто импортируйте <code>CustomMarkdown</code> из файла <code>addon.py</code> и установите режим разбора клиента, как показано выше.</p>
+<p>Пример использования этого дополнения можно найти в файле <code>test.py</code>.</p>
+
+<h2>Установка</h2>
+<p>Вы можете включить это дополнение в свой проект, клонировав репозиторий или скачав файл <code>addon.py</code> напрямую. Все дополнительные библиотеки устанавливаются вместе с Telethon.</p>
+
+<h2>Версия Python и библиотеки Telethon</h2>
+<p>Это дополнение было разработано с использованием версии Python <strong>3.9</strong>, с другими версиями не проверялось.</p>
+<p>Это дополнение совместимо с версией Telethon <strong>1.37.0</strong>, с другими версиями не проверялось.</p>
+
+<h2>Обновления версий</h2>
+<p>1.0.0:</p>
+<ul>
+    <li>Основная функциональность</li>
+</ul>
+<p>1.1.0:</p>
+<ul>
+    <li>Добавлена обработка специальных символов в блоках (Ссылка, Цитата, Копируемый текст "Моно", Код).</li>
+    <li>Добавлено экранирование специальных символов "\".</li>
+    <li>Исправлены мелкие ошибки.</li>
 </ul>
