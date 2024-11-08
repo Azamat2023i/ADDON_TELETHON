@@ -11,6 +11,7 @@ from telethon.tl.types import (
     MessageEntityStrike, MessageEntityCustomEmoji, MessageEntitySpoiler,
     MessageEntityBlockquote, MessageEntityUnderline
 )
+from config import *
 
 DEFAULT_DELIMITERS = {
     '**': MessageEntityBold,
@@ -19,7 +20,9 @@ DEFAULT_DELIMITERS = {
     '```': MessageEntityPre,
     '`': MessageEntityCode,
     '_~_': MessageEntityUnderline,
-    '||': MessageEntitySpoiler
+    '||': MessageEntitySpoiler,
+    '%%$': MessageEntityBlockquote,
+    '%%#': MessageEntityBlockquote
 }
 
 
@@ -88,6 +91,7 @@ class CustomMarkdown:
 
                     # Проверяем другие затронутые сущности.
                     for ent in result:
+                        # print(ent)
                         # Если конец после нашего начала, это затронуто.
                         if ent.offset + ent.length > i:
                             # Если старое начало также перед нашим, оно полностью заключено.
@@ -100,6 +104,8 @@ class CustomMarkdown:
                     ent = delimiters[delim]
                     if ent == MessageEntityPre:
                         result.append(ent(i, end - i - len(delim), ''))  # У сущности 'lang'.
+                    elif ent == MessageEntityBlockquote:
+                        result.append(ent(i, end - i - len(delim), (True if delim == '%%$' else False)))  # У сущности 'lang'.
                     else:
                         result.append(ent(i, end - i - len(delim)))  # Нет вложенных сущностей внутри блоков кода.
                     continue
@@ -111,21 +117,15 @@ class CustomMarkdown:
                     message[mg.end():]
                 ))
 
-                delim_size = mg.end() - mg.start() - len(mg.group())  # Вычисляем размер удаляемого текста.
+                delim_size = len(mg.group()) - len((message[:mg.start()], mg.group(1), message[mg.end():])[1])  # Вычисляем размер удаляемого текста.
 
                 for ent in result:
                     # Если конец после нашего начала, это затронуто.
                     if ent.offset + ent.length > mg.start():
-                        ent.length -= delim_size  # Уменьшаем длину сущности.
+                        ent.length -= int(delim_size)  # Уменьшаем длину сущности.
 
                 if del_surrogate(mg.group(2)).startswith('emoji/'):
-                    result.append(types.MessageEntityCustomEmoji(mg.start(), len(mg.group(1)),
-                                                                 int(del_surrogate(mg.group(2)).split('/')[1])))
-                elif del_surrogate(mg.group(2)).startswith('blockquote/'):
-                    if str(del_surrogate(mg.group(2)).split('/')[1]) == 'True':
-                        result.append(types.MessageEntityBlockquote(mg.start(), len(mg.group(1)), True))
-                    else:
-                        result.append(types.MessageEntityBlockquote(mg.start(), len(mg.group(1)), False))
+                    result.append(types.MessageEntityCustomEmoji(mg.start(), len(mg.group(1)), int(del_surrogate(mg.group(2)).split('/')[1])))
                 else:
                     result.append(MessageEntityTextUrl(
                         offset=mg.start(),
@@ -158,29 +158,53 @@ class CustomMarkdown:
         if isinstance(entities, TLObject):
             entities = (entities,)
 
+        delimiter = [dd for dd in delimiters]
+
+        # Создаем паттерн для всех разделителей
+        pattern = r'(?<!\\)(' + '|'.join(map(re.escape, delimiter)) + r')'
+
+        matches = re.findall(pattern, text)
+
+        escaped_indices = []
+
+        # Заменяем найденные разделители на экранированные и сохраняем индексы
+        def escape_delimiter(match):
+            index = match.start()  # Получаем индекс начала совпадения
+            escaped_indices.append(index)  # Сохраняем индекс в списке
+            return r'\\' + match.group(0)  # Возвращаем экранированный разделитель
+
+        text = re.sub(pattern, escape_delimiter, text)
+
         # Добавляем суррогаты в текст
         text = add_surrogate(text)
 
         # Переворачиваем словарь разделителей для удобства
         delimiters = {v: k for k, v in delimiters.items()}
+
         insert_at = []  # Список для хранения позиций вставки
 
         for i, entity in enumerate(entities):
-            s = entity.offset + count_replacements  # Начальная позиция сущности
-            e = entity.offset + entity.length + count_replacements  # Конечная позиция сущности
+            s = entity.offset  # Начальная позиция сущности
+            e = entity.offset + entity.length  # Конечная позиция сущности
 
-            text = del_surrogate(text)
-            ll = 0
-            for delimiter in DEFAULT_DELIMITERS.keys():
-                count = text[s:e].count(delimiter)
-                count_replacements += count  # Добавляем к общему счетчику
-                ll += count
-                text_sl = text[s:e].replace(delimiter, '\\' + delimiter)
-                text = text[:s] + text_sl + text[e:]
-            e += ll
-            text = add_surrogate(text)
+            for i in escaped_indices:
+                if int(i) == int(entity.offset):
+                    s += 0
+                    e += 1
+                elif int(i) > int(entity.offset) and int(i) < int(entity.offset) + int(entity.length):
+                    s += 0
+                    e += 2
+                elif int(i) < int(entity.offset):
+                    s += 2
+                    e += 2
 
-            delimiter = delimiters.get(type(entity), None)  # Получаем разделитель для данной сущности
+            if type(entity) == MessageEntityBlockquote:
+                if entity.collapsed == True:
+                    delimiter = '%%$'
+                else:
+                    delimiter = '%%#'
+            else:
+                delimiter = delimiters.get(type(entity), None)  # Получаем разделитель для данной сущности
 
             if delimiter:
                 insert_at.append((s, i, delimiter))  # Добавляем позицию начала разделителя
@@ -191,10 +215,10 @@ class CustomMarkdown:
                     url = entity.url  # Если это URL-сущность, получаем URL
                 elif isinstance(entity, MessageEntityMentionName):
                     url = 'tg://user?id={}'.format(entity.user_id)  # Если это упоминание пользователя, формируем URL
-                elif isinstance(entity, MessageEntityCustomEmoji):
+                elif isinstance(entity, MessageEntityCustomEmoji) and EMOJi:
                     url = f'emoji/{entity.document_id}'  # Для пользовательского эмодзи формируем URL
-                elif isinstance(entity, MessageEntityBlockquote):
-                    url = f'blockquote/{entity.collapsed}'  # Для блока цитаты формируем URL
+                # elif isinstance(entity, MessageEntityBlockquote):
+                #     url = f'blockquote/{entity.collapsed}'  # Для блока цитаты формируем URL
 
                 if url:
                     insert_at.append((s, i, '['))  # Добавляем открывающую скобку для ссылки
