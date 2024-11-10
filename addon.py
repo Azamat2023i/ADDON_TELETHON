@@ -137,7 +137,7 @@ class HTMLToTelegramParser(HTMLParser):
             self.entities.append(entity)
 
 
-class CustomMarkdown:
+class CustomHTML:
     @staticmethod
     def parse(html: str) -> Tuple[str, List[TypeMessageEntity]]:
         """
