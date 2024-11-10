@@ -1,6 +1,6 @@
-<h1>Telethon Markdown Processing Addon (English)</h1>
+<h1>Telethon HTML Processing Addon (English)</h1>
 
-<p>This addon enhances the markdown processing capabilities of the Telethon library.</p>
+<p>This addon enhances the HTML processing capabilities of the Telethon library.</p>
 
 <h2>Features</h2>
 <ul>
@@ -11,10 +11,10 @@
 </ul>
 
 <h2>Usage</h2>
-<pre><code>from addon import CustomMarkdown
-client.parse_mode = CustomMarkdown()</code></pre>
+<pre><code>from addon import CustomHTML
+client.parse_mode = CustomHTML()</code></pre>
 
-<p>To utilize the features, simply import <code>CustomMarkdown</code> from the <code>addon.py</code> file and set the client's parse mode as shown above.</p>
+<p>To utilize the features, simply import <code>CustomHTML</code> from the <code>addon.py</code> file and set the client's parse mode as shown above.</p>
 <p>An example of how to use this addon can be found in the <code>test.py</code> file.</p>
 
 <h2>Installation</h2>
@@ -35,10 +35,14 @@ client.parse_mode = CustomMarkdown()</code></pre>
     <li>Added escaping of special characters "\".</li>
     <li>Minor bugs have been fixed.</li>
 </ul>
+<p>2.0.0:</p>
+<ul>
+    <li>Total change, changed Markdown to HTML</li>
+</ul>
 <br><br>
-<h1>Дополнение для обработки Markdown в Telethon (Русский)</h1>
+<h1>Дополнение для обработки HTML в Telethon (Русский)</h1>
 
-<p>Это дополнение улучшает возможности обработки Markdown в библиотеке Telethon.</p>
+<p>Это дополнение улучшает возможности обработки HTML в библиотеке Telethon.</p>
 
 <h2>Особенности</h2>
 <ul>
@@ -49,10 +53,10 @@ client.parse_mode = CustomMarkdown()</code></pre>
 </ul>
 
 <h2>Использование</h2>
-<pre><code>from addon import CustomMarkdown
-client.parse_mode = CustomMarkdown()</code></pre>
+<pre><code>from addon import CustomHTML
+client.parse_mode = CustomHTML()</code></pre>
 
-<p>Чтобы использовать функции, просто импортируйте <code>CustomMarkdown</code> из файла <code>addon.py</code> и установите режим разбора клиента, как показано выше.</p>
+<p>Чтобы использовать функции, просто импортируйте <code>CustomHTML</code> из файла <code>addon.py</code> и установите режим разбора клиента, как показано выше.</p>
 <p>Пример использования этого дополнения можно найти в файле <code>test.py</code>.</p>
 
 <h2>Установка</h2>
@@ -72,4 +76,8 @@ client.parse_mode = CustomMarkdown()</code></pre>
     <li>Добавлена обработка специальных символов в блоках (Ссылка, Цитата, Копируемый текст "Моно", Код).</li>
     <li>Добавлено экранирование специальных символов "\".</li>
     <li>Исправлены мелкие ошибки.</li>
+</ul>
+<p>2.0.0:</p>
+<ul>
+    <li>Татальное изменение, изменен Markdown в HTML</li>
 </ul>
