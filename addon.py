@@ -1,235 +1,203 @@
 # -*- coding: utf-8 -*-
 
-import re
-from telethon import types
-import warnings
+"""
+Simple HTML -> Telegram entity parser.
+"""
+from collections import deque
+from html import escape
+from html.parser import HTMLParser
+from typing import Iterable, Tuple, List
+
 from telethon.helpers import add_surrogate, del_surrogate, within_surrogate, strip_text
 from telethon.tl import TLObject
+
 from telethon.tl.types import (
     MessageEntityBold, MessageEntityItalic, MessageEntityCode,
     MessageEntityPre, MessageEntityTextUrl, MessageEntityMentionName,
     MessageEntityStrike, MessageEntityCustomEmoji, MessageEntitySpoiler,
-    MessageEntityBlockquote, MessageEntityUnderline
+    MessageEntityBlockquote, MessageEntityUnderline, TypeMessageEntity,
+    MessageEntityEmail, MessageEntityUrl
 )
-from config import *
 
-DEFAULT_DELIMITERS = {
-    '**': MessageEntityBold,
-    '__': MessageEntityItalic,
-    '~~': MessageEntityStrike,
-    '```': MessageEntityPre,
-    '`': MessageEntityCode,
-    '_~_': MessageEntityUnderline,
-    '||': MessageEntitySpoiler,
-    '%%$': MessageEntityBlockquote,
-    '%%#': MessageEntityBlockquote
+
+ENTITY_TO_FORMATTER = {
+    MessageEntityBold: ('<strong>', '</strong>'),
+    MessageEntityItalic: ('<em>', '</em>'),
+    MessageEntityCode: ('<code>', '</code>'),
+    MessageEntityUnderline: ('<u>', '</u>'),
+    MessageEntityStrike: ('<del>', '</del>'),
+    MessageEntitySpoiler: ('<spoiler>', '</spoiler>'),
+    MessageEntityPre: lambda e, _: ("<pre><code class='language-{}'>".format(e.language), "{}</code></pre>"),
+    MessageEntityEmail: lambda _, t: ('<a href="mailto:{}">'.format(t), '</a>'),
+    MessageEntityUrl: lambda _, t: ('<a href="{}">'.format(t), '</a>'),
+    MessageEntityTextUrl: lambda e, _: ('<a href="{}">'.format(escape(e.url)), '</a>'),
+    MessageEntityMentionName: lambda e, _: ('<a href="tg://user?id={}">'.format(e.user_id), '</a>'),
+    MessageEntityCustomEmoji: lambda e, _: ('<emoji id="{}">'.format(e.document_id), '</emoji>'),
+    MessageEntityBlockquote: lambda e, _: ('<blockquote collapsed="{}">'.format(e.collapsed), '</blockquote>'),
 }
 
 
-DEFAULT_URL_RE = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
-DEFAULT_URL_FORMAT = '[{0}]({1})'
+class HTMLToTelegramParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text = ''
+        self.entities = []
+        self._building_entities = {}
+        self._open_tags = deque()
+        self._open_tags_meta = deque()
 
+    def handle_starttag(self, tag, attrs):
+        self._open_tags.appendleft(tag)
+        self._open_tags_meta.appendleft(None)
 
-def overlap(a, b, x, y):
-    return max(a, x) < min(b, y)
+        attrs = dict(attrs)
+        EntityType = None
+        args = {}
+        if tag == 'strong' or tag == 'b':
+            EntityType = MessageEntityBold
+        elif tag == 'em' or tag == 'i':
+            EntityType = MessageEntityItalic
+        elif tag == 'u':
+            EntityType = MessageEntityUnderline
+        elif tag == 'del' or tag == 's':
+            EntityType = MessageEntityStrike
+        elif tag == 'spoiler':
+            EntityType = MessageEntitySpoiler
+        elif tag == 'code':
+            try:
+                pre = self._building_entities['pre']
+                try:
+                    pre.language = attrs['class'][len('language-'):]
+                except KeyError:
+                    pass
+            except KeyError:
+                EntityType = MessageEntityCode
+        elif tag == 'pre':
+            EntityType = MessageEntityPre
+            args['language'] = ''
+        elif tag == 'a':
+            try:
+                url = attrs['href']
+            except KeyError:
+                return
+            if url.startswith('mailto:'):
+                url = url[len('mailto:'):]
+                EntityType = MessageEntityEmail
+            else:
+                if self.get_starttag_text() == url:
+                    EntityType = MessageEntityUrl
+                else:
+                    EntityType = MessageEntityTextUrl
+                    args['url'] = del_surrogate(url)
+                    url = None
+            self._open_tags_meta.popleft()
+            self._open_tags_meta.appendleft(url)
+        elif tag == 'emoji':
+            try:
+                document_id = attrs['id']
+            except KeyError:
+                return
+            EntityType = MessageEntityCustomEmoji
+            args['document_id'] = int(del_surrogate(document_id))
+        elif tag == 'blockquote':
+            try:
+                collapsed = attrs['collapsed']
+            except KeyError:
+                return
+            EntityType = MessageEntityBlockquote
+            args['collapsed'] = True if del_surrogate(collapsed) == "True" else False
+
+        if EntityType and tag not in self._building_entities:
+            self._building_entities[tag] = EntityType(
+                offset=len(self.text),
+                # The length will be determined when closing the tag.
+                length=0,
+                **args)
+
+    def handle_data(self, text):
+        previous_tag = self._open_tags[0] if len(self._open_tags) > 0 else ''
+        if previous_tag == 'a':
+            url = self._open_tags_meta[0]
+            if url:
+                text = url
+
+        for tag, entity in self._building_entities.items():
+            entity.length += len(text)
+
+        self.text += text
+
+    def handle_endtag(self, tag):
+        try:
+            self._open_tags.popleft()
+            self._open_tags_meta.popleft()
+        except IndexError:
+            pass
+        entity = self._building_entities.pop(tag, None)
+        if entity:
+            self.entities.append(entity)
 
 
 class CustomMarkdown:
     @staticmethod
-    def parse(message, delimiters=None, delimiters_backslash=None, url_re=None, l=0):
-        if not message:
-            return message, []
+    def parse(html: str) -> Tuple[str, List[TypeMessageEntity]]:
+        """
+        Parses the given HTML message and returns its stripped representation
+        plus a list of the MessageEntity's that were found.
 
-        if url_re is None:
-            url_re = DEFAULT_URL_RE  # Если регулярное выражение для URL не задано, используем значение по умолчанию.
-        elif isinstance(url_re, str):
-            url_re = re.compile(url_re)  # Компилируем строку в регулярное выражение.
+        :param html: the message with HTML to be parsed.
+        :return: a tuple consisting of (clean message, [message entities]).
+        """
+        if not html:
+            return html, []
 
-        if not delimiters:
-            if delimiters is not None:
-                return message, []  # Если разделители не заданы, возвращаем сообщение без изменений и пустой список.
-            delimiters = DEFAULT_DELIMITERS  # Используем разделители по умолчанию.
-            delimiters_backslash = {f'\\{key}': value for key, value in DEFAULT_DELIMITERS.items()}
-
-        # Создаем регулярное выражение для эффективной проверки всех разделителей сразу.
-        # Заметьте, что самый длинный разделитель должен быть первым, чтобы избежать неправильного разбора.
-        delim_re = re.compile(r'(?<!\\)(' + '|'.join(re.escape(k) for k in sorted(delimiters, key=len, reverse=True)) + r')')
-        delim_backslash_re = re.compile('|'.join('({})'.format(re.escape(k)) for k in sorted(delimiters_backslash, key=len, reverse=True)))
-
-        # Не можем использовать цикл for, так как нужно пропустить некоторые индексы.
-        result = []
-        # Работаем на уровне байтов с кодировкой utf-16le для правильного получения смещений.
-        # Смещение будет просто половиной индекса, который мы находим.
-        message = add_surrogate(message)
-
-        i = 0
-        while i < len(message):
-            m = delim_re.match(message, pos=i)  # Проверяем, нашли ли мы разделитель в позиции i.
-            ml = delim_backslash_re.match(message, pos=i)  # Проверяем, нашли ли мы разделитель с \ в позиции i.
-            mg = url_re.match(message, pos=i)  # Проверяем наличие URL в сообщении.
-            if ml:
-                delim = next(filter(None, ml.groups()))
-
-                message = delim[1:].join((
-                    message[:i],
-                    message[i + len(delim):]
-                ))
-
-                i += len(delim)
-            elif m:
-                delim = next(filter(None, m.groups()))  # Получаем найденный разделитель.
-                # +1 чтобы избежать совпадения сразу после (например, "****").
-                end = message.find(delim, i + len(delim) + 1)  # Ищем ближайший закрывающий тег.
-                # Если нашли закрывающий тег.
-                if end != -1:
-                    # Удаляем разделитель из строки.
-                    message = ''.join((
-                        message[:i],
-                        message[i + len(delim):end],
-                        message[end + len(delim):]
-                    ))
-
-                    # Проверяем другие затронутые сущности.
-                    for ent in result:
-                        # print(ent)
-                        # Если конец после нашего начала, это затронуто.
-                        if ent.offset + ent.length > i:
-                            # Если старое начало также перед нашим, оно полностью заключено.
-                            if ent.offset <= i:
-                                ent.length -= len(delim) * 2  # Уменьшаем длину сущности.
-                            else:
-                                ent.length -= len(delim)
-
-                    # Добавляем найденную сущность.
-                    ent = delimiters[delim]
-                    if ent == MessageEntityPre:
-                        result.append(ent(i, end - i - len(delim), ''))  # У сущности 'lang'.
-                    elif ent == MessageEntityBlockquote:
-                        result.append(ent(i, end - i - len(delim), (True if delim == '%%$' else False)))  # У сущности 'lang'.
-                    else:
-                        result.append(ent(i, end - i - len(delim)))  # Нет вложенных сущностей внутри блоков кода.
-                    continue
-            elif mg:
-                # Заменяем всё совпадение только текстом URL.
-                message = ''.join((
-                    message[:mg.start()],
-                    mg.group(1),
-                    message[mg.end():]
-                ))
-
-                delim_size = len(mg.group()) - len((message[:mg.start()], mg.group(1), message[mg.end():])[1])  # Вычисляем размер удаляемого текста.
-
-                for ent in result:
-                    # Если конец после нашего начала, это затронуто.
-                    if ent.offset + ent.length > mg.start():
-                        ent.length -= int(delim_size)  # Уменьшаем длину сущности.
-
-                if del_surrogate(mg.group(2)).startswith('emoji/'):
-                    result.append(types.MessageEntityCustomEmoji(mg.start(), len(mg.group(1)), int(del_surrogate(mg.group(2)).split('/')[1])))
-                else:
-                    result.append(MessageEntityTextUrl(
-                        offset=mg.start(),
-                        length=len(mg.group(1)),
-                        url=del_surrogate(mg.group(2))
-                    ))
-                continue
-            i += 1  # Переходим к следующему символу в сообщении.
-
-        message = strip_text(message, result)  # Очищаем текст сообщения от лишнего.
-        return del_surrogate(message), result  # Возвращаем обработанное сообщение и список сущностей.
+        parser = HTMLToTelegramParser()
+        parser.feed(add_surrogate(html))
+        text = strip_text(parser.text, parser.entities)
+        parser.entities.reverse()
+        parser.entities.sort(key=lambda entity: entity.offset)
+        return del_surrogate(text), parser.entities
 
     @staticmethod
-    def unparse(text, entities, delimiters=None, url_fmt=None, count_replacements=0):
-        # Проверяем, есть ли текст и сущности
-        if not text or not entities:
-            return text  # Если нет текста или сущностей, возвращаем текст как есть
+    def unparse(text: str, entities: Iterable[TypeMessageEntity]) -> str:
+        """
+        Performs the reverse operation to .parse(), effectively returning HTML
+        given a normal text and its MessageEntity's.
 
-        # Проверяем, заданы ли разделители
-        if not delimiters:
-            if delimiters is not None:
-                return text  # Если разделители не заданы, но переданы явно, возвращаем текст
-            delimiters = DEFAULT_DELIMITERS  # Устанавливаем разделители по умолчанию
+        :param text: the text to be reconverted into HTML.
+        :param entities: the MessageEntity's applied to the text.
+        :return: a HTML representation of the combination of both inputs.
+        """
+        if not text:
+            return text
+        elif not entities:
+            return escape(text)
 
-        # Предупреждаем, что параметр url_fmt устарел
-        if url_fmt is not None:
-            warnings.warn('url_fmt is deprecated')  # так как это усложняет все *очень сильно*
-
-        # Приводим сущности к кортежу, если это объект TLObject
         if isinstance(entities, TLObject):
             entities = (entities,)
 
-        delimiter = [dd for dd in delimiters]
-
-        # Создаем паттерн для всех разделителей
-        pattern = r'(?<!\\)(' + '|'.join(map(re.escape, delimiter)) + r')'
-
-        matches = re.findall(pattern, text)
-
-        escaped_indices = []
-
-        # Заменяем найденные разделители на экранированные и сохраняем индексы
-        def escape_delimiter(match):
-            index = match.start()  # Получаем индекс начала совпадения
-            escaped_indices.append(index)  # Сохраняем индекс в списке
-            return r'\\' + match.group(0)  # Возвращаем экранированный разделитель
-
-        text = re.sub(pattern, escape_delimiter, text)
-
-        # Добавляем суррогаты в текст
         text = add_surrogate(text)
-
-        # Переворачиваем словарь разделителей для удобства
-        delimiters = {v: k for k, v in delimiters.items()}
-
-        insert_at = []  # Список для хранения позиций вставки
-
+        insert_at = []
         for i, entity in enumerate(entities):
-            s = entity.offset  # Начальная позиция сущности
-            e = entity.offset + entity.length  # Конечная позиция сущности
-
-            for i in escaped_indices:
-                if int(i) == int(entity.offset):
-                    s += 0
-                    e += 1
-                elif int(i) > int(entity.offset) and int(i) < int(entity.offset) + int(entity.length):
-                    s += 0
-                    e += 2
-                elif int(i) < int(entity.offset):
-                    s += 2
-                    e += 2
-
-            if type(entity) == MessageEntityBlockquote:
-                if entity.collapsed == True:
-                    delimiter = '%%$'
-                else:
-                    delimiter = '%%#'
-            else:
-                delimiter = delimiters.get(type(entity), None)  # Получаем разделитель для данной сущности
-
+            s = entity.offset
+            e = entity.offset + entity.length
+            delimiter = ENTITY_TO_FORMATTER.get(type(entity), None)
             if delimiter:
-                insert_at.append((s, i, delimiter))  # Добавляем позицию начала разделителя
-                insert_at.append((e, -i, delimiter))  # Добавляем позицию конца разделителя
-            else:
-                url = None  # Инициализация переменной URL
-                if isinstance(entity, MessageEntityTextUrl):
-                    url = entity.url  # Если это URL-сущность, получаем URL
-                elif isinstance(entity, MessageEntityMentionName):
-                    url = 'tg://user?id={}'.format(entity.user_id)  # Если это упоминание пользователя, формируем URL
-                elif isinstance(entity, MessageEntityCustomEmoji) and EMOJi:
-                    url = f'emoji/{entity.document_id}'  # Для пользовательского эмодзи формируем URL
-                # elif isinstance(entity, MessageEntityBlockquote):
-                #     url = f'blockquote/{entity.collapsed}'  # Для блока цитаты формируем URL
+                if callable(delimiter):
+                    delimiter = delimiter(entity, text[s:e])
+                insert_at.append((s, i, delimiter[0]))
+                insert_at.append((e, -i, delimiter[1]))
 
-                if url:
-                    insert_at.append((s, i, '['))  # Добавляем открывающую скобку для ссылки
-                    insert_at.append((e, -i, ']({})'.format(url)))  # Добавляем закрывающую скобку с URL
-
-        insert_at.sort(key=lambda t: (t[0], t[1]))  # Сортируем позиции вставки
-
+        insert_at.sort(key=lambda t: (t[0], t[1]))
+        next_escape_bound = len(text)
         while insert_at:
-            at, _, what = insert_at.pop()  # Извлекаем последнюю позицию вставки
-            while within_surrogate(text, at):  # Проверяем на наличие суррогатов
-                at += 1  # Если есть суррогаты, сдвигаем позицию
+            # Same logic as markdown.py
+            at, _, what = insert_at.pop()
+            while within_surrogate(text, at):
+                at += 1
 
-            text = text[:at] + what + text[at:]  # Вставляем нужный текст в позицию
-        return del_surrogate(text)  # Убираем суррогаты из текста и возвращаем результат
+            text = text[:at] + what + escape(text[at:next_escape_bound]) + text[next_escape_bound:]
+            next_escape_bound = at
+
+        text = escape(text[:next_escape_bound]) + text[next_escape_bound:]
+
+        return del_surrogate(text)
