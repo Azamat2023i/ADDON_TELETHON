@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from telethon import TelegramClient, events
 from config import *
-from addon import CustomMarkdown
+from addon import CustomHTML
 
 client = TelegramClient("my_account", api_id=api_id, api_hash=api_hash, system_version='4.16.30-vxCUSTOM')
 
@@ -59,7 +59,7 @@ obj.value = -5    # Ошибка: Значение должно быть пол�
 
 async def main():
     await client.start(phone=phone_number)
-    client.parse_mode = CustomMarkdown()
+    client.parse_mode = CustomHTML()
     await client.send_message(1359387573, f"{test_text}", link_preview=False)
 
 
