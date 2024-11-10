@@ -25,7 +25,7 @@ client.parse_mode = CustomHTML()</code></pre>
 <p>This addon is compatible with Telethon version <strong>1.37.0</strong>, haven't tried it with other versions.</p>
 
 <h2>Update Versions</h2>
-<p>1.0.0:</p>
+<s><p>1.0.0:</p>
 <ul>
     <li>The main functionality</li>
 </ul>
@@ -34,7 +34,7 @@ client.parse_mode = CustomHTML()</code></pre>
     <li>Added processing of special characters in blocks (Link, Quote, Copyable text "Mono", Code).</li>
     <li>Added escaping of special characters "\".</li>
     <li>Minor bugs have been fixed.</li>
-</ul>
+</ul></s>
 <p>2.0.0:</p>
 <ul>
     <li>Total change, changed Markdown to HTML</li>
@@ -67,7 +67,7 @@ client.parse_mode = CustomHTML()</code></pre>
 <p>Это дополнение совместимо с версией Telethon <strong>1.37.0</strong>, с другими версиями не проверялось.</p>
 
 <h2>Обновления версий</h2>
-<p>1.0.0:</p>
+<s><p>1.0.0:</p>
 <ul>
     <li>Основная функциональность</li>
 </ul>
@@ -76,7 +76,7 @@ client.parse_mode = CustomHTML()</code></pre>
     <li>Добавлена обработка специальных символов в блоках (Ссылка, Цитата, Копируемый текст "Моно", Код).</li>
     <li>Добавлено экранирование специальных символов "\".</li>
     <li>Исправлены мелкие ошибки.</li>
-</ul>
+</ul></s>
 <p>2.0.0:</p>
 <ul>
     <li>Татальное изменение, изменен Markdown в HTML</li>
